@@ -39,3 +39,22 @@ luac.out
 *.x86_64
 *.hex
 
+Settings.ini
+*.tdat
+*.gba
+*.sav
+*.State
+*.ss[0-9]
+*.log
+*Attempts.txt
+quickload/*.jar
+quickload/*.rnqs
+extensions/*
+!extensions/How to use.txt
+!extensions/CodeExtensionTemplate.lua.txt
+ironmon_tracker/*.txt
+ironmon_tracker/network/Requests.json
+ironmon_tracker/images/pokemonAnimated/*.gif
+AnimatedPokemon.gif
+RandomizerErrorLog.txt
+ThemePresets.txt
