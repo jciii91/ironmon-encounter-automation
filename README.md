@@ -1,4 +1,9 @@
 # ironmon-encounter-automation
+
+### Installation
+Place Lua file in your tracker's 'extension' folder. No other files required.
+
+### Summary and Instructions
 Automate encounter searching for IronMon players. Enter the name and level of the desired encounter and press the start button. The extension will trigger encounters until one matching the search criteria has begun.
 
 Current iteration of this extension is very limited, for now it is simply proof of concept.
