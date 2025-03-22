@@ -1,7 +1,7 @@
 local function EncounterHunter()
 	-- Define descriptive attributes of the custom extension that are displayed on the Tracker settings
 	local self = {}
-	self.version = "1.0"
+	self.version = "1.1"
 	self.name = "Encounter Hunter"
 	self.author = "jciii91"
 	self.description = "Triggers encounters until the desired Pokémon is found. Users can set what Pokémon and level they are hunting for. Extension ceases automatic search once it is complete."
@@ -11,13 +11,15 @@ local function EncounterHunter()
 	-- EncounterHunterScreen locals --
 	local EncounterHunterScreen = {}
 	local previousScreen = nil
+	local play_pressed = false
+	local last_input_horizontal = true
 	local hunting = false
 	local found = true
 	local battle_menu_navigation = false
 	local delay_counter = 0
 	local move_right = true
 	local target_name = ''
-	local target_level = 0
+	local target_level = nil
 
 	function self.openSetSearchParams()
 		local form = Utils.createBizhawkForm("Set Search Params", 145, 100, 100, 50)
@@ -39,7 +41,8 @@ local function EncounterHunter()
 	end
 
 	function self.saveSearchParms(name, level)
-		target_name = name
+		target_name = string.lower(name)
+		if target_name == 'name' then target_name = '' end -- default value needs to be blanked out if left there
 		target_level = tonumber(level)
 	end
 
@@ -162,11 +165,20 @@ local function EncounterHunter()
 	}
 
 	-- add start/stop button (img changes depending on state), disable user joypad while searching
-	-- Disabled if no name or level set
 	EncounterHunterScreen.Buttons = {
 		LaunchSetParamsDialog = {
 			type = Constants.ButtonTypes.NO_BORDER,
-			getCustomText = function() return 'Click here to set params.' end,
+			getCustomText = function() 
+				if target_name ~= '' and target_level ~= nil then
+					return string.format("Look for %s at level %d", target_name, target_level)
+				elseif target_name ~= '' and target_level == nil then
+					return string.format("Look for %s at any level", target_name)
+				elseif (target_name == '' or string.lower(target_name) == 'name') and target_level ~= nil then
+					return string.format("Look for any Pokémon at level %d", target_level)
+				else 
+					return 'Click here to set params.'
+				end
+			end,
 			textColor = EncounterHunterScreen.Colors.highlight,
 			value = 'Launch Set Params Screen',
 			defaultValue = 'Launch Set Params Screen',
@@ -182,19 +194,19 @@ local function EncounterHunter()
 			box = { buttonOffsetX + 1, (buttonOffsetY * 2) + 5, 18, 18 },
 			isVisible = function() return true end,
 			onClick = function(self)
-				hunting = not hunting
-				if hunting then
+				play_pressed = not play_pressed
+				if play_pressed then
 					EncounterHunterScreen.Buttons.StartStop.image = EncounterHunterScreen.PixelImages.STOP
 					EncounterHunterScreen.Buttons.StartStop.box = { buttonOffsetX + 4, (buttonOffsetY * 2) + 5, 18, 18 }
 					found = false
-					joypad.set({Right = true})
-
+					hunting = true
 					Program.changeScreenView(previousScreen)
 					previousScreen = nil
 				else
 					EncounterHunterScreen.Buttons.StartStop.image = EncounterHunterScreen.PixelImages.START
 					EncounterHunterScreen.Buttons.StartStop.box = { buttonOffsetX + 1, (buttonOffsetY * 2) + 5, 18, 18 }
 					found = true
+					hunting = false
 				end
 			end
 		},
@@ -208,8 +220,6 @@ local function EncounterHunter()
 		Input.checkButtonsClicked(xmouse, ymouse, EncounterHunterScreen.Buttons or {})
 	end
 
-	-- Add lables to show current search params
-	-- '*' to denote wildcard match, autoset wildcard if name/level is set but not the other
 	-- Default both to 'Not set'
 	function EncounterHunterScreen.drawScreen()
 		local canvas = {
@@ -262,27 +272,29 @@ local function EncounterHunter()
 
 	-- Executed once every 30 frames, after most data from game memory is read in
 	function self.afterProgramDataUpdate()
-		if hunting and not found then
-			if move_right then
+		if play_pressed then
+			if hunting and not found then
+				if move_right then
+					if last_input_horizontal then joypad.set({Up = true}) else joypad.set({Right = true}) end
+				else
+					if last_input_horizontal then joypad.set({Down = true}) else joypad.set({Left = true}) end
+				end
+				move_right = not move_right
+			elseif battle_menu_navigation and delay_counter < 8 then
+				joypad.set({B = true})
+				delay_counter = delay_counter + 1
+			elseif battle_menu_navigation and delay_counter < 24 then -- increasing delay here to account for longer ability animations (e.g. Drought)
+				joypad.set({Down = true})
+				delay_counter = delay_counter + 1
+			elseif battle_menu_navigation and delay_counter < 25 then -- the rest of these checks don't need as much delay so it's been reduced
 				joypad.set({Right = true})
-			else
-				joypad.set({Left = true})
+				delay_counter = delay_counter + 1
+			elseif battle_menu_navigation and delay_counter < 26 then
+				joypad.set({A = true})
+				delay_counter = delay_counter + 1
+			elseif battle_menu_navigation and delay_counter < 27 then
+				joypad.set({A = true})
 			end
-			move_right = not move_right
-		elseif battle_menu_navigation and delay_counter < 8 then
-			joypad.set({B = true})
-			delay_counter = delay_counter + 1
-		elseif battle_menu_navigation and delay_counter < 16 then
-			joypad.set({Down = true})
-			delay_counter = delay_counter + 1
-		elseif battle_menu_navigation and delay_counter < 24 then
-			joypad.set({Right = true})
-			delay_counter = delay_counter + 1
-		elseif battle_menu_navigation and delay_counter < 28 then
-			joypad.set({A = true})
-			delay_counter = delay_counter + 1
-		elseif battle_menu_navigation and delay_counter < 36 then
-			joypad.set({A = true})
 		end
 	end
 
@@ -297,28 +309,35 @@ local function EncounterHunter()
 
 	-- Executed after a new battle begins (wild or trainer), and only once per battle
 	function self.afterBattleBegins()
-		hunting = false
-		if Battle.isWildEncounter then
-			local wild_name = Tracker.getPokemon(1, false).nickname
-			local wild_level = Tracker.getPokemon(1, false).level
+		if play_pressed then
+			hunting = false
+			 if move_right then last_input_before_battle = Left else last_input_before_battle = Right end
+			if Battle.isWildEncounter then
+				local wild_name = string.lower(Tracker.getPokemon(1, false).nickname)
+				local wild_level = tonumber(Tracker.getPokemon(1, false).level)
 
-			-- add XOR capability, 
-			if target_name == wild_name and target_level == wild_level then
-				EncounterHunterScreen.Buttons.StartStop.image = EncounterHunterScreen.PixelImages.START
-				EncounterHunterScreen.Buttons.StartStop.box = { buttonOffsetX + 1, (buttonOffsetY * 2) + 5, 18, 18 }
-				found = true
-			else
-				battle_menu_navigation = true
+				if (target_name ~= "" and target_level ~= nil and wild_name == target_name and wild_level == target_level) or -- name and level set
+   				   (target_name ~= "" and target_level == nil and wild_name == target_name) or -- just name is set
+   				   (target_name == "" and target_level ~= nil and wild_level == target_level) then -- just level is set
+					EncounterHunterScreen.Buttons.StartStop.image = EncounterHunterScreen.PixelImages.START
+					EncounterHunterScreen.Buttons.StartStop.box = { buttonOffsetX + 1, (buttonOffsetY * 2) + 5, 18, 18 }
+					found = true
+				else
+					battle_menu_navigation = true
+				end
 			end
 		end
 	end
 
 	-- Executed after a battle ends, and only once per battle
 	function self.afterBattleEnds()
-		battle_menu_navigation = false
-		delay_counter = 0
-		if not found then
-			hunting = true
+		if play_pressed then
+			battle_menu_navigation = false
+			delay_counter = 0
+			if not found then
+				hunting = true
+				last_input_horizontal = not last_input_horizontal
+			end
 		end
 	end
 
