@@ -1,7 +1,7 @@
 local function EncounterHunter()
 	-- Define descriptive attributes of the custom extension that are displayed on the Tracker settings
 	local self = {}
-	self.version = "1.1"
+	self.version = "1.11"
 	self.name = "Encounter Hunter"
 	self.author = "jciii91"
 	self.description = "Triggers encounters until the desired Pokémon is found. Users can set what Pokémon and level they are hunting for. Extension ceases automatic search once it is complete."
@@ -321,6 +321,7 @@ local function EncounterHunter()
    				   (target_name == "" and target_level ~= nil and wild_level == target_level) then -- just level is set
 					EncounterHunterScreen.Buttons.StartStop.image = EncounterHunterScreen.PixelImages.START
 					EncounterHunterScreen.Buttons.StartStop.box = { buttonOffsetX + 1, (buttonOffsetY * 2) + 5, 18, 18 }
+					play_pressed = false
 					found = true
 				else
 					battle_menu_navigation = true
