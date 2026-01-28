@@ -1,7 +1,7 @@
 local function EncounterHunter()
 	-- Define descriptive attributes of the custom extension that are displayed on the Tracker settings
 	local self = {}
-	self.version = "1.11"
+	self.version = "1.2"
 	self.name = "Encounter Hunter"
 	self.author = "jciii91"
 	self.description = "Triggers encounters until the desired Pokémon is found. Users can set what Pokémon and level they are hunting for. Extension ceases automatic search once it is complete."
@@ -20,6 +20,13 @@ local function EncounterHunter()
 	local move_right = true
 	local target_name = ''
 	local target_level = nil
+
+	local delay_ability_ids = {
+		[2] = true, -- Drizzle
+		[36] = true, -- Trace
+		[45] = true, -- Sand Stream
+		[70] = true -- Drought
+	}
 
 	function self.openSetSearchParams()
 		local form = Utils.createBizhawkForm("Set Search Params", 145, 100, 100, 50)
@@ -280,10 +287,17 @@ local function EncounterHunter()
 					if last_input_horizontal then joypad.set({Down = true}) else joypad.set({Left = true}) end
 				end
 				move_right = not move_right
-			elseif battle_menu_navigation and delay_counter < 8 then
+
+				return
+			end
+
+			local lead_pokemon_ability = Tracker.getPokemon(1).abilities[1].id
+			big_delay = (delay_ability_ids[lead_pokemon_ability] and 40 or 24) -- Bigger delay if player mon has an ability with a long animation
+
+			if battle_menu_navigation and delay_counter < 8 then
 				joypad.set({B = true})
 				delay_counter = delay_counter + 1
-			elseif battle_menu_navigation and delay_counter < 24 then -- increasing delay here to account for longer ability animations (e.g. Drought)
+			elseif battle_menu_navigation and delay_counter < big_delay then -- increasing delay here to account for longer ability animations (e.g. Drought)
 				joypad.set({Down = true})
 				delay_counter = delay_counter + 1
 			elseif battle_menu_navigation and delay_counter < 25 then -- the rest of these checks don't need as much delay so it's been reduced
