@@ -1,7 +1,7 @@
 local function EncounterHunter()
 	-- Define descriptive attributes of the custom extension that are displayed on the Tracker settings
 	local self = {}
-	self.version = "1.2"
+	self.version = "1.3"
 	self.name = "Encounter Hunter"
 	self.author = "jciii91"
 	self.description = "Triggers encounters until the desired Pokémon is found. Users can set what Pokémon and level they are hunting for. Extension ceases automatic search once it is complete."
@@ -291,7 +291,9 @@ local function EncounterHunter()
 				return
 			end
 
-			local lead_pokemon_ability = Tracker.getPokemon(1).abilities[1].id
+			local ownPokemon = Tracker.getPokemon(1)
+			local lead_pokemon_ability = ownPokemon and PokemonData.getAbilityId(ownPokemon.pokemonID, ownPokemon.abilityNum)
+
 			big_delay = (delay_ability_ids[lead_pokemon_ability] and 40 or 24) -- Bigger delay if player mon has an ability with a long animation
 
 			if battle_menu_navigation and delay_counter < 8 then
